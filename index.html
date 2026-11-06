@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La Miscelánea · Control de inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--ink:#10302a;--ink2:#1b4a40;--bg:#f2f5f3;--card:#fff;--line:#dbe4df;--txt:#16211e;--mut:#62736d;--ok:#0e7c66;--okbg:#dcf3ec;--warn:#a96b00;--warnbg:#fdf0cf;--bad:#c23a4b;--badbg:#fbe1e4;--r:14px}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Bricolage Grotesque',system-ui,sans-serif;background:var(--bg);color:var(--txt);display:flex;min-height:100vh}
+nav{width:232px;background:var(--ink);color:#d6e6e0;padding:22px 14px;position:sticky;top:0;height:100vh;flex-shrink:0}
+nav h1{font-size:20px;margin:0 8px 2px;color:#fff}nav small{display:block;margin:0 8px 26px;color:#8fb0a5}
+nav a{display:flex;justify-content:space-between;padding:10px 12px;border-radius:10px;color:inherit;text-decoration:none;margin-bottom:3px;font-weight:500}
+nav a:hover{background:var(--ink2)}nav a.on{background:#fff;color:var(--ink)}
+nav .n{background:var(--bad);color:#fff;border-radius:99px;font-size:12px;padding:1px 8px}
+main{flex:1;padding:26px 34px;min-width:0;max-width:1100px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+h2{font-size:30px;margin:0;letter-spacing:-.02em}h3{margin:0 0 12px;font-size:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:18px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.stat b{display:block;font-size:34px;letter-spacing:-.03em}.stat span{color:var(--mut);font-size:14px}
+.stat.hot{border-color:#e7c46a;background:#fffaf0}
+table{width:100%;border-collapse:collapse;font-size:14.5px}th{text-align:left;color:var(--mut);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid #edf1ef}tr.row{cursor:pointer}tr.row:hover td{background:#f7faf8}tr.sel td{background:#eef6f3}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:700}
+.t-ok{background:var(--okbg);color:var(--ok)}.t-reordenar{background:var(--warnbg);color:var(--warn)}.t-bajo{background:var(--badbg);color:var(--bad)}
+form.f{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));align-items:end}
+label{display:grid;gap:5px;font-size:13px;color:var(--mut)}
+input,select{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--txt)}
+input:focus,select:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--ok);outline-offset:1px}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:11px 18px;background:var(--ok);color:#fff;cursor:pointer}
+button.g{background:#e8eeeb;color:var(--ink)}button.d{background:var(--badbg);color:var(--bad)}button.s{padding:5px 11px;font-size:13px}
+.msg{margin-top:12px;padding:10px 14px;border-radius:10px;font-size:14px}.msg.ok{background:var(--okbg);color:var(--ok)}.msg.err{background:var(--badbg);color:var(--bad)}
+.alert{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-radius:12px;margin-bottom:10px;border:1px solid}
+.alert.bajo{background:var(--badbg);border-color:#efb7bf}.alert.reordenar{background:var(--warnbg);border-color:#ecd08a}
+.model{font-family:ui-monospace,Menlo,monospace;background:var(--ink);color:#d6f5ea;padding:12px 16px;border-radius:10px;margin:8px 0;font-size:14px}
+.mut{color:var(--mut)}.empty{padding:26px;text-align:center;color:var(--mut)}
+.provs{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+svg text{font-family:inherit;font-size:11px;fill:var(--mut)}
+@media(max-width:780px){body{flex-direction:column}nav{width:100%;height:auto;position:static;display:flex;flex-wrap:wrap;gap:4px;padding:12px}nav h1,nav small{display:none}main{padding:18px}}
+</style>
+</head>
+<body>
+<nav>
+  <h1>La Miscelánea</h1><small>Control de inventario</small>
+  <a href="#inicio">Inicio</a><a href="#inventario">Inventario</a><a href="#productos">Productos</a>
+  <a href="#ventas">Ventas</a><a href="#proveedores">Proveedores</a><a href="#alertas">Alertas <span class="n" id="nAl" hidden></span></a>
+</nav>
+<main>
+  <header><h2 id="titulo"></h2>
+    <label>Periodo para la tasa de venta
+      <select id="per"><option value="7">Últimos 7 días</option><option value="10" selected>Últimos 10 días</option><option value="15">Últimos 15 días</option><option value="30">Últimos 30 días</option></select>
+    </label>
+  </header>
+  <div id="vista"></div>
+</main>
+
+<script>
+/* ===== 1. Pega aquí tus datos de Supabase (Project Settings > API) ===== */
+const SUPABASE_URL = 'https://mpswivzypvlcesnoacsw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_1QY3N7U9-kGw7SGsTaKlIg_3s_wSJVv';
+/* ======================================================================= */
+
+const configurado = !SUPABASE_URL.startsWith('TU_');
+const sb = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const S = { prods: [], provs: [], ventas: [], recientes: [], dias: 10, sel: null, msg: null, edit: null };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cop = n => new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0}).format(n || 0);
+const num = (n, d = 1) => Number.isFinite(n) ? n.toFixed(d) : '∞';
+const hoy = () => new Date().toISOString().slice(0, 10);
+const TIT = {inicio:'Inicio', inventario:'Inventario', productos:'Productos', ventas:'Ventas', proveedores:'Proveedores', alertas:'Alertas'};
+
+/* ---------- Modelo: dI/dt = -v  →  I(t) = I0 - v·t ---------- */
+function calc(p) {
+  const prov = S.provs.find(x => x.id === p.id_proveedor);
+  const lead = prov?.tiempo_entrega ?? 3;
+  const vendidas = S.ventas.filter(v => v.id_producto === p.id).reduce((a, v) => a + v.cantidad, 0);
+  const v = vendidas / S.dias;                       // tasa de venta diaria
+  const dias = v > 0 ? p.stock_actual / v : Infinity; // t donde I(t)=0
+  const rop = v * lead + (p.stock_minimo || 0);       // punto de reorden
+  const estado = p.stock_actual <= p.stock_minimo ? 'bajo' : p.stock_actual <= rop ? 'reordenar' : 'ok';
+  return { p, prov, lead, v, dias, rop, estado };
+}
+const items = () => S.prods.map(calc);
+const tag = e => `<span class="tag t-${e}">${{ok:'Suficiente', reordenar:'Reordenar', bajo:'Stock bajo'}[e]}</span>`;
+
+/* ---------- Datos ---------- */
+async function cargar() {
+  const desde = new Date(Date.now() - S.dias * 864e5).toISOString().slice(0, 10);
+  const [p, pr, v, r] = await Promise.all([
+    sb.from('producto').select('*').order('nombre'),
+    sb.from('proveedor').select('*').order('nombre'),
+    sb.from('venta').select('*').gte('fecha', desde),
+    sb.from('venta').select('*').order('id', {ascending:false}).limit(12)
+  ]);
+  const err = p.error || pr.error || v.error || r.error;
+  if (err) throw err;
+  Object.assign(S, { prods: p.data, provs: pr.data, ventas: v.data, recientes: r.data });
+  const n = items().filter(i => i.estado !== 'ok').length;
+  $('#nAl').hidden = !n; $('#nAl').textContent = n;
+}
+async function refrescar() {
+  try { await cargar(); } catch (e) { $('#vista').innerHTML = `<div class="card"><div class="msg err">No se pudo leer la base de datos: ${esc(e.message)}. Revisa que corriste schema.sql y que tus claves son correctas.</div></div>`; return; }
+  render();
+}
+function aviso(t, tipo = 'ok') { S.msg = {t, tipo}; render(); setTimeout(() => { S.msg = null; render(); }, 4500); }
+const msgHtml = () => S.msg ? `<div class="msg ${S.msg.tipo}" role="status">${esc(S.msg.t)}</div>` : '';
+
+/* ---------- Vistas ---------- */
+const V = {
+  inicio() {
+    const it = items(), r = it.filter(i => i.estado !== 'ok');
+    const prox = [...it].filter(i => Number.isFinite(i.dias)).sort((a, b) => a.dias - b.dias).slice(0, 5);
+    return `<div class="grid">
+      <div class="card stat"><b>${it.length}</b><span>Productos registrados</span></div>
+      <div class="card stat"><b>${it.reduce((a, i) => a + i.p.stock_actual, 0)}</b><span>Unidades en stock</span></div>
+      <div class="card stat ${r.length ? 'hot' : ''}"><b>${r.length}</b><span>Requieren reposición</span></div>
+      <div class="card stat"><b>${S.ventas.reduce((a, v) => a + v.cantidad, 0)}</b><span>Unidades vendidas en el periodo</span></div></div>
+      <div class="card"><h3>Productos más cerca de agotarse</h3>${prox.length ? `<div class="wrap"><table><tr><th>Producto</th><th>Stock</th><th>Días restantes</th><th>Estado</th></tr>${prox.map(i => `<tr><td>${esc(i.p.nombre)}</td><td>${i.p.stock_actual}</td><td><b>${num(i.dias)}</b></td><td>${tag(i.estado)}</td></tr>`).join('')}</table></div>` : '<div class="empty">Aún no hay ventas en este periodo. Registra una venta para ver la estimación.</div>'}</div>`;
+  },
+  inventario() {
+    const it = items(), s = it.find(i => i.p.id === S.sel);
+    return `<div class="card"><h3>Estado detallado del inventario</h3>${it.length ? `<div class="wrap"><table><tr><th>Producto</th><th>Categoría</th><th>Stock</th><th>Venta/día</th><th>Días para agotarse</th><th>Entrega</th><th>Punto de reorden</th><th>Estado</th></tr>
+      ${it.map(i => `<tr class="row ${i.p.id === S.sel ? 'sel' : ''}" onclick="S.sel=${i.p.id};render()"><td><b>${esc(i.p.nombre)}</b></td><td>${esc(i.p.categoria)}</td><td>${i.p.stock_actual}</td><td>${num(i.v, 2)}</td><td>${num(i.dias)}</td><td>${i.lead} d</td><td>${num(i.rop)}</td><td>${tag(i.estado)}</td></tr>`).join('')}</table></div>` : '<div class="empty">No hay productos. Agrega el primero en la sección Productos.</div>'}</div>
+      <div class="card"><h3>Proyección I(t)${s ? ' · ' + esc(s.p.nombre) : ''}</h3>${s ? grafica(s) : '<div class="empty">Selecciona un producto de la tabla para ver cómo baja su inventario con el tiempo.</div>'}
+      <div class="model">dI/dt = −v(t) &nbsp;→&nbsp; I(t) = I₀ − v·t</div><div class="model">días = I / v &nbsp;·&nbsp; reorden = v·entrega + stock de seguridad</div></div>`;
+  },
+  productos() {
+    const e = S.edit ? S.prods.find(p => p.id === S.edit) : null, x = e || {};
+    return `<div class="card"><h3>${e ? 'Editar producto' : 'Agregar producto'}</h3><form class="f" onsubmit="guardarProd(event)">
+      <label>Nombre<input name="nombre" required value="${esc(x.nombre)}"></label>
+      <label>Categoría<input name="categoria" required value="${esc(x.categoria)}"></label>
+      <label>Precio (COP)<input name="precio" type="number" min="0" required value="${x.precio ?? ''}"></label>
+      <label>Stock ${e ? 'actual' : 'inicial'}<input name="stock" type="number" min="0" required value="${x.stock_actual ?? ''}"></label>
+      <label>Stock mínimo<input name="stock_minimo" type="number" min="0" required value="${x.stock_minimo ?? ''}"></label>
+      <label>Proveedor<select name="id_proveedor"><option value="">Sin proveedor</option>${S.provs.map(p => `<option value="${p.id}" ${p.id === x.id_proveedor ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></label>
+      <div><button>${e ? 'Guardar cambios' : 'Agregar producto'}</button> ${e ? '<button type="button" class="g" onclick="S.edit=null;render()">Cancelar</button>' : ''}</div></form>${msgHtml()}</div>
+      <div class="card"><h3>Catálogo</h3>${S.prods.length ? `<div class="wrap"><table><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Mínimo</th><th>Proveedor</th><th></th></tr>
+      ${S.prods.map(p => `<tr><td>${esc(p.nombre)}</td><td>${esc(p.categoria)}</td><td>${cop(p.precio)}</td><td>${p.stock_actual}</td><td>${p.stock_minimo}</td><td>${esc(S.provs.find(v => v.id === p.id_proveedor)?.nombre || '—')}</td><td><button class="s g" onclick="S.edit=${p.id};render();scrollTo(0,0)">Editar</button> <button class="s d" onclick="borrarProd(${p.id})">Eliminar</button></td></tr>`).join('')}</table></div>` : '<div class="empty">Todavía no hay productos.</div>'}</div>`;
+  },
+  ventas() {
+    const now = new Date().toTimeString().slice(0, 5), p0 = S.prods[0];
+    return `<div class="card"><h3>Registrar venta</h3>${S.prods.length ? `<form class="f" onsubmit="vender(event)">
+      <label>Producto<select name="id" id="vp" onchange="precioVenta()">${S.prods.map(p => `<option value="${p.id}">${esc(p.nombre)} (hay ${p.stock_actual})</option>`).join('')}</select></label>
+      <label>Cantidad<input name="cantidad" type="number" min="1" required></label>
+      <label>Fecha<input name="fecha" type="date" value="${hoy()}" required></label>
+      <label>Hora<input name="hora" type="time" value="${now}" required></label>
+      <label>Precio unitario<input id="vpre" disabled value="${cop(p0?.precio)}"></label><div><button>Registrar venta</button></div></form>` : '<div class="empty">Primero agrega productos.</div>'}${msgHtml()}</div>
+      <div class="card"><h3>Ventas recientes</h3>${S.recientes.length ? `<div class="wrap"><table><tr><th>Producto</th><th>Cantidad</th><th>Fecha</th><th>Hora</th><th>Precio</th><th>Total</th></tr>
+      ${S.recientes.map(v => `<tr><td>${esc(S.prods.find(p => p.id === v.id_producto)?.nombre || '#' + v.id_producto)}</td><td>${v.cantidad}</td><td>${v.fecha}</td><td>${(v.hora || '').slice(0, 5)}</td><td>${cop(v.precio_unitario)}</td><td><b>${cop(v.total)}</b></td></tr>`).join('')}</table></div>` : '<div class="empty">Aún no hay ventas registradas.</div>'}</div>`;
+  },
+  proveedores() {
+    return `<div class="card"><h3>Agregar proveedor</h3><form class="f" onsubmit="guardarProv(event)">
+      <label>Nombre<input name="nombre" required></label><label>Teléfono<input name="telefono"></label>
+      <label>Tiempo de entrega (días)<input name="tiempo_entrega" type="number" min="1" required></label><div><button>Agregar proveedor</button></div></form>${msgHtml()}</div>
+      <div class="provs">${S.provs.map(v => `<div class="card"><h3>${esc(v.nombre)}</h3><div class="mut">Entrega en <b>${v.tiempo_entrega} días</b> · ${esc(v.telefono || 'sin teléfono')}</div><p>${items().filter(i => i.p.id_proveedor === v.id).map(i => `${esc(i.p.nombre)} ${tag(i.estado)}`).join('<br>') || '<span class="mut">Sin productos asociados</span>'}</p></div>`).join('') || '<div class="empty">No hay proveedores.</div>'}</div>`;
+  },
+  alertas() {
+    const it = items(), g = e => it.filter(i => i.estado === e);
+    const bloque = (e, t) => g(e).length ? `<h3>${t} (${g(e).length})</h3>${g(e).map(i => `<div class="alert ${e}"><div><b>${esc(i.p.nombre)}</b><div class="mut">Stock ${i.p.stock_actual} · reorden en ${num(i.rop)} · entrega ${i.lead} d${i.prov ? ' · ' + esc(i.prov.nombre) : ''}</div></div><div>${tag(e)}<div class="mut">${Number.isFinite(i.dias) ? num(i.dias) + ' días' : 'sin ventas'}</div></div></div>`).join('')}` : '';
+    const html = bloque('bajo', 'Stock bajo: atención urgente') + bloque('reordenar', 'Hacer pedido pronto');
+    return `<div class="card">${html || '<div class="empty">Todo en orden: ningún producto necesita reposición.</div>'}</div>`;
+  }
+};
+
+function grafica(i) {
+  const W = 640, H = 220, m = 36, tmax = Math.max(Number.isFinite(i.dias) ? i.dias : 0, i.lead * 2, 5) * 1.08, I0 = Math.max(i.p.stock_actual, i.rop) * 1.1 || 1;
+  const x = t => m + t / tmax * (W - m - 10), y = v => H - m - v / I0 * (H - m - 14);
+  const tf = Math.min(Number.isFinite(i.dias) ? i.dias : tmax, tmax);
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Proyección del inventario">
+    <line x1="${m}" y1="${y(0)}" x2="${W - 10}" y2="${y(0)}" stroke="#cfd9d4"/><line x1="${m}" y1="14" x2="${m}" y2="${y(0)}" stroke="#cfd9d4"/>
+    <line x1="${m}" y1="${y(i.rop)}" x2="${W - 10}" y2="${y(i.rop)}" stroke="#a96b00" stroke-dasharray="5 4"/><text x="${W - 14}" y="${y(i.rop) - 5}" text-anchor="end">punto de reorden</text>
+    <line x1="${x(0)}" y1="${y(i.p.stock_actual)}" x2="${x(tf)}" y2="${y(i.p.stock_actual - i.v * tf)}" stroke="#0e7c66" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="${x(0)}" cy="${y(i.p.stock_actual)}" r="5" fill="#0e7c66"/>
+    <text x="${m}" y="${H - 12}">hoy</text><text x="${W - 10}" y="${H - 12}" text-anchor="end">${num(tmax, 0)} días</text><text x="${m - 6}" y="${y(i.p.stock_actual) + 4}" text-anchor="end">${i.p.stock_actual}</text></svg>`;
+}
+
+/* ---------- Acciones ---------- */
+window.precioVenta = () => { const p = S.prods.find(x => x.id == $('#vp').value); $('#vpre').value = cop(p?.precio); };
+window.vender = async e => {
+  e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)), p = S.prods.find(x => x.id == f.id), c = +f.cantidad;
+  if (c > p.stock_actual) return aviso(`Solo quedan ${p.stock_actual} unidades de ${p.nombre}. La venta no se registró.`, 'err');
+  const { error } = await sb.rpc('registrar_venta', { p_producto: +f.id, p_cantidad: c, p_fecha: f.fecha, p_hora: f.hora });
+  if (error) return aviso(error.message, 'err');
+  await cargar(); aviso(`Venta registrada: ${c} × ${p.nombre}. El stock se actualizó.`);
+};
+window.guardarProd = async e => {
+  e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+  const d = { nombre: f.nombre, categoria: f.categoria, precio: +f.precio, stock_actual: +f.stock, stock_minimo: +f.stock_minimo, id_proveedor: f.id_proveedor ? +f.id_proveedor : null };
+  const q = S.edit ? sb.from('producto').update(d).eq('id', S.edit) : sb.from('producto').insert({ ...d, stock_inicial: +f.stock });
+  const { error } = await q; if (error) return aviso(error.message, 'err');
+  const edit = S.edit; S.edit = null; await cargar(); aviso(edit ? 'Cambios guardados.' : 'Producto agregado.');
+};
+window.borrarProd = async id => {
+  if (!confirm('¿Eliminar este producto? También se borran sus ventas.')) return;
+  const { error } = await sb.from('producto').delete().eq('id', id); if (error) return aviso(error.message, 'err');
+  await cargar(); aviso('Producto eliminado.');
+};
+window.guardarProv = async e => {
+  e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+  const { error } = await sb.from('proveedor').insert({ nombre: f.nombre, telefono: f.telefono, tiempo_entrega: +f.tiempo_entrega });
+  if (error) return aviso(error.message, 'err'); await cargar(); aviso('Proveedor agregado.');
+};
+
+/* ---------- Arranque ---------- */
+window.S = S; window.render = render;
+function render() {
+  const r = (location.hash || '#inicio').slice(1), k = V[r] ? r : 'inicio';
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.hash === '#' + k));
+  $('#titulo').textContent = TIT[k];
+  $('#vista').innerHTML = V[k]();
+}
+$('#per').onchange = async e => { S.dias = +e.target.value; await refrescar(); };
+addEventListener('hashchange', render);
+if (!configurado) {
+  $('#vista').innerHTML = '<div class="card"><h3>Falta conectar Supabase</h3><p>Abre <b>index.html</b> en un editor y reemplaza <code>TU_PROJECT_URL</code> y <code>TU_ANON_PUBLIC_KEY</code> con los datos de tu proyecto (Project Settings → API).</p></div>';
+} else refrescar();
+</script>
+</body>
+</html>
